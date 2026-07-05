@@ -154,12 +154,24 @@ export class WhatsAppService {
       const senderPhone = message.from
       const msgType = message.type
       
-      // Fetch default location (mocking multi-tenant)
-      const { data: locData } = await (this.bookingEngine as any).supabase
-        .from('locations')
-        .select('id, name, business_id')
-        .limit(1)
-        .single()
+      let locData = null
+      
+      if (data.location_id) {
+         const { data: specificLoc } = await (this.bookingEngine as any).supabase
+            .from('locations')
+            .select('id, name, business_id')
+            .eq('id', data.location_id)
+            .single()
+         locData = specificLoc
+      } else {
+         const { data: newestLoc } = await (this.bookingEngine as any).supabase
+            .from('locations')
+            .select('id, name, business_id')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single()
+         locData = newestLoc
+      }
         
       if (!locData) {
         await this.sendText(senderPhone, 'System not configured with any locations yet.')

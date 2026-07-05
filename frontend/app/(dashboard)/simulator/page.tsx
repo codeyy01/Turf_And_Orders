@@ -19,6 +19,7 @@ export default function SimulatorPage() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [locationId, setLocationId] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const mockPhone = '919999999999'
@@ -27,6 +28,24 @@ export default function SimulatorPage() {
     setMounted(true)
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    const fetchLocation = async () => {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: biz } = await supabase.from('businesses').select('id').eq('owner_id', user.id).single()
+        if (biz) {
+          const { data: loc } = await supabase.from('locations').select('id').eq('business_id', biz.id).single()
+          if (loc) {
+            setLocationId(loc.id)
+          }
+        }
+      }
+    }
+    fetchLocation()
+  }, [])
 
   const sendWebhook = async (mockEntry: any) => {
     setIsLoading(true)
@@ -82,6 +101,7 @@ export default function SimulatorPage() {
 
     const payload = {
       object: 'whatsapp_business_account',
+      location_id: locationId,
       entry: [{
         changes: [{
           value: {
@@ -104,6 +124,7 @@ export default function SimulatorPage() {
 
     const payload = {
       object: 'whatsapp_business_account',
+      location_id: locationId,
       entry: [{
         changes: [{
           value: {
@@ -129,6 +150,7 @@ export default function SimulatorPage() {
 
     const payload = {
       object: 'whatsapp_business_account',
+      location_id: locationId,
       entry: [{
         changes: [{
           value: {
