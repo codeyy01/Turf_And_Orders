@@ -2,12 +2,14 @@ import { NextResponse } from 'next/server'
 import { WhatsAppService } from '@/lib/services/whatsapp'
 import { BookingEngine } from '@/lib/services/booking'
 import { RazorpayService } from '@/lib/services/razorpay'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     
-    const engine = new BookingEngine()
+    const supabase = createClient()
+    const engine = new BookingEngine(supabase)
     const rzp = new RazorpayService()
     const wa = new WhatsAppService(engine, rzp)
     
