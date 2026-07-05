@@ -9,7 +9,7 @@ export default function RevenueCard() {
 
       <div className="relative z-10 flex justify-between items-start">
         <div>
-          <p className="text-emerald-50 text-sm font-medium tracking-wide">Today's Revenue</p>
+          <p className="text-emerald-50 text-sm font-medium tracking-wide">Today&apos;s Revenue</p>
           <div className="flex items-center mt-2">
             <span className="text-4xl font-bold tracking-tight">₹0</span>
           </div>

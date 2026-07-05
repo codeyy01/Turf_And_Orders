@@ -53,7 +53,7 @@ export default function InstallPrompt() {
       <div className="flex-1">
         {isIos ? (
           <p className="text-sm text-gray-700 font-medium leading-snug">
-            Install this app on your iPhone: tap the Share icon, then <span className="font-bold text-gray-900">"Add to Home Screen"</span>.
+            Install this app on your iPhone: tap the Share icon, then <span className="font-bold text-gray-900">&quot;Add to Home Screen&quot;</span>.
           </p>
         ) : (
           <div className="flex items-center justify-between">

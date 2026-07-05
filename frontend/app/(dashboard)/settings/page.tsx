@@ -94,6 +94,7 @@ export default function SettingsPage() {
       setIsLoading(false)
     }
     loadSettings()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function handleSave(e: React.FormEvent) {
