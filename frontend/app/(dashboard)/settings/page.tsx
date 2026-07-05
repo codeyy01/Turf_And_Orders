@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, LogOut } from 'lucide-react'
+import { Save, LogOut, Download, QrCode } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { QRCodeCanvas } from 'qrcode.react'
 
 export default function SettingsPage() {
   const supabase = createClient()
@@ -134,6 +135,18 @@ export default function SettingsPage() {
     window.location.href = '/auth/login'
   }
 
+  const handleDownloadQR = () => {
+    const canvas = document.getElementById('whatsapp-qr') as HTMLCanvasElement
+    if (!canvas) return
+    const pngUrl = canvas.toDataURL('image/png').replace('image/png', 'image/octet-stream')
+    const downloadLink = document.createElement('a')
+    downloadLink.href = pngUrl
+    downloadLink.download = `${formData.businessName || 'turf'}-qr.png`
+    document.body.appendChild(downloadLink)
+    downloadLink.click()
+    document.body.removeChild(downloadLink)
+  }
+
   if (isLoading) {
     return <div className="p-8">Loading settings...</div>
   }
@@ -218,6 +231,43 @@ export default function SettingsPage() {
                   <option value="60">Every Hour (e.g. 1:00, 2:00)</option>
                 </select>
                 <p className="mt-1 text-xs text-gray-500">How frequently start times are offered to users on WhatsApp.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-6">
+            <div className="flex items-center space-x-2">
+              <QrCode className="w-5 h-5 text-gray-700" />
+              <h2 className="text-lg font-medium text-gray-900">WhatsApp QR Code</h2>
+            </div>
+            <p className="text-sm text-gray-500 mt-1">
+              Print this QR code and place it at your turf. Customers can scan it to immediately start booking on WhatsApp.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-8 bg-gray-50 p-6 rounded-xl border border-gray-100">
+              <div className="bg-white p-4 rounded-xl shadow-sm">
+                <QRCodeCanvas 
+                  id="whatsapp-qr"
+                  value={`https://wa.me/${formData.phone.replace('+', '')}?text=Book%20${encodeURIComponent(formData.businessName || 'My Turf')}`} 
+                  size={160} 
+                  level="H"
+                  includeMargin={true}
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                />
+              </div>
+              <div className="flex flex-col space-y-3 items-center sm:items-start">
+                <button
+                  type="button"
+                  onClick={handleDownloadQR}
+                  className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download QR Code
+                </button>
+                <p className="text-xs text-gray-500 text-center sm:text-left">
+                  High-quality PNG format for printing.
+                </p>
               </div>
             </div>
           </div>
