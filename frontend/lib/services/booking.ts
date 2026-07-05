@@ -67,9 +67,9 @@ export class BookingEngine {
 
   async getAvailability(locationId: string, date: Date) {
     const startOfDay = new Date(date)
-    startOfDay.setHours(0, 0, 0, 0)
+    startOfDay.setUTCHours(0, 0, 0, 0)
     const endOfDay = new Date(date)
-    endOfDay.setHours(23, 59, 59, 999)
+    endOfDay.setUTCHours(23, 59, 59, 999)
 
     const { data, error } = await this.supabase
       .from('bookings')
@@ -93,41 +93,33 @@ export class BookingEngine {
       end: new Date(b.end_time)
     }))
 
-    const openTime = new Date(targetDate)
-    openTime.setHours(6, 0, 0, 0) // 6 AM
-    const closeTime = new Date(targetDate)
-    closeTime.setHours(23, 0, 0, 0) // 11 PM
-
-    let currentTime = new Date(openTime)
-    const now = new Date()
+    // targetDate is expected to be a midnight UTC date (e.g. 2026-07-06T00:00:00.000Z)
+    // For IST, 6:00 AM is 00:30 UTC.
+    const baseTime = new Date(targetDate)
+    baseTime.setUTCHours(0, 30, 0, 0)
     
-    // If today, push currentTime to next available interval
-    if (targetDate.toDateString() === now.toDateString()) {
-      if (currentTime < now) {
-        currentTime = new Date(now)
-      }
-      const minsPast = currentTime.getMinutes() % interval
-      if (minsPast > 0) {
-        currentTime.setMinutes(currentTime.getMinutes() + (interval - minsPast))
-      }
-      currentTime.setSeconds(0, 0)
-    }
-
+    const now = new Date()
     const availableStarts: Date[] = []
+    
+    const slotsCount = ((23 - 6) * 60) / interval
 
-    while (currentTime < closeTime) {
+    for (let i = 0; i <= slotsCount; i++) {
+      const slotTime = new Date(baseTime)
+      slotTime.setMinutes(slotTime.getMinutes() + (i * interval))
+
+      if (slotTime < now) continue // Skip past slots
+
       let isFree = true
       for (const b of bookedIntervals) {
-        if (b.start <= currentTime && currentTime < b.end) {
+        if (b.start <= slotTime && slotTime < b.end) {
           isFree = false
           break
         }
       }
 
       if (isFree) {
-        availableStarts.push(new Date(currentTime))
+        availableStarts.push(slotTime)
       }
-      currentTime.setMinutes(currentTime.getMinutes() + interval)
     }
 
     return availableStarts

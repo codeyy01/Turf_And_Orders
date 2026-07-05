@@ -55,9 +55,13 @@ export class WhatsAppService {
   }
 
   async sendDateSelection(to: string) {
-    const today = new Date()
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
+    const nowUtc = new Date().getTime();
+    const istNow = new Date(nowUtc + (5.5 * 60 * 60000));
+    const todayStr = istNow.toISOString().split('T')[0];
+    
+    const istTomorrow = new Date(istNow);
+    istTomorrow.setDate(istTomorrow.getDate() + 1);
+    const tomorrowStr = istTomorrow.toISOString().split('T')[0];
 
     const payload = {
       messaging_product: 'whatsapp',
@@ -68,8 +72,8 @@ export class WhatsAppService {
         body: { text: 'When would you like to book?' },
         action: {
           buttons: [
-            { type: 'reply', reply: { id: `date_${today.toISOString().split('T')[0]}`, title: 'Today' } },
-            { type: 'reply', reply: { id: `date_${tomorrow.toISOString().split('T')[0]}`, title: 'Tomorrow' } }
+            { type: 'reply', reply: { id: `date_${todayStr}`, title: 'Today' } },
+            { type: 'reply', reply: { id: `date_${tomorrowStr}`, title: 'Tomorrow' } }
           ]
         }
       }
