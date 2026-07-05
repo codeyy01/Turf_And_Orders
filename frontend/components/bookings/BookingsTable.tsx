@@ -2,6 +2,7 @@
 
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings'
 import { format } from 'date-fns'
+import { createClient } from '@/lib/supabase/client'
 
 type Booking = {
   id: string
@@ -20,6 +21,15 @@ const STATUS_BADGES: Record<Booking['status'], string> = {
 
 export default function BookingsTable({ initialBookings }: { initialBookings: any[] }) {
   const bookings = useRealtimeBookings<Booking>(initialBookings)
+  const supabase = createClient()
+
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+    try {
+      await supabase.from('bookings').update({ status: newStatus }).eq('id', id)
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
   return (
     <div className="overflow-x-auto">
@@ -61,9 +71,18 @@ export default function BookingsTable({ initialBookings }: { initialBookings: an
                 ₹{booking.amount || 0}
               </td>
               <td className="px-6 py-4 text-right">
-                <button className="text-emerald-600 hover:text-emerald-900 font-medium text-sm">
-                  Manage
-                </button>
+                <div className="flex justify-end space-x-4">
+                  {booking.status !== 'confirmed' && booking.status !== 'cancelled' && (
+                     <button onClick={() => handleUpdateStatus(booking.id, 'confirmed')} className="text-emerald-600 hover:text-emerald-900 font-medium text-sm">
+                       Confirm
+                     </button>
+                  )}
+                  {booking.status !== 'cancelled' && (
+                     <button onClick={() => handleUpdateStatus(booking.id, 'cancelled')} className="text-red-500 hover:text-red-700 font-medium text-sm">
+                       Cancel
+                     </button>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
