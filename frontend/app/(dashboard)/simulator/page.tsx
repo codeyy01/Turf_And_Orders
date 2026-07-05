@@ -18,11 +18,13 @@ export default function SimulatorPage() {
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const mockPhone = '919999999999'
 
   useEffect(() => {
+    setMounted(true)
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
@@ -195,7 +197,7 @@ export default function SimulatorPage() {
               )}
               
               <div className="text-[10px] text-gray-400 text-right mt-1.5 flex items-center justify-end space-x-1">
-                <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <span>{mounted ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
                 {m.role === 'user' && <span className="text-[#53bdeb]">✓✓</span>}
               </div>
             </div>
