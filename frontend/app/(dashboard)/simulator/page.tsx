@@ -34,11 +34,12 @@ export default function SimulatorPage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const { data: biz } = await supabase.from('businesses').select('id').eq('owner_id', user.id).single()
-        if (biz) {
-          const { data: loc } = await supabase.from('locations').select('id').eq('business_id', biz.id).single()
-          if (loc) {
-            setLocationId(loc.id)
+        const { data: bizArr } = await supabase.from('businesses').select('id').eq('owner_id', user.id).limit(1)
+        if (bizArr && bizArr.length > 0) {
+          const biz = bizArr[0]
+          const { data: locArr } = await supabase.from('locations').select('id').eq('business_id', biz.id).limit(1)
+          if (locArr && locArr.length > 0) {
+            setLocationId(locArr[0].id)
           }
         }
       }
