@@ -107,8 +107,15 @@ export default function SettingsPage() {
     setIsSaving(true)
     
     try {
-      // Update business (currently we don't have business name, location name is used for now)
-      // but we can update the phone if needed (though it says disabled in UI)
+      // Update business phone
+      const { error: bizError } = await supabase
+        .from('businesses')
+        .update({
+          phone: formData.phone
+        })
+        .eq('id', businessId)
+        
+      if (bizError) throw bizError
       
       // Update location
       const { error } = await supabase
@@ -183,10 +190,10 @@ export default function SettingsPage() {
                   type="text"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 sm:text-sm bg-gray-50 cursor-not-allowed"
-                  disabled
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 sm:text-sm"
+                  placeholder="+91..."
                 />
-                <p className="mt-1 text-xs text-gray-500">Contact support to change the registered Meta API number.</p>
+                <p className="mt-1 text-xs text-gray-500">Your registered WhatsApp API number.</p>
               </div>
             </div>
           </div>
