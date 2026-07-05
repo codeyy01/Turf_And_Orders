@@ -77,14 +77,19 @@ export class WhatsAppService {
     await this.sendRequest(payload)
   }
 
-  async sendStartTimeSelection(to: string, locationId: string, targetDate: Date) {
+  async sendStartTimeSelection(to: string, locationId: string, targetDate: Date, page: number = 0) {
     const availableStarts = await this.bookingEngine.getAvailableStartTimes(locationId, targetDate)
     if (!availableStarts || availableStarts.length === 0) {
       await this.sendText(to, 'Sorry, there are no available slots for this date.')
       return
     }
 
-    const rows = availableStarts.slice(0, 10).map(st => {
+    const pageSize = 9
+    const startIdx = page * pageSize
+    const endIdx = startIdx + pageSize
+    const hasMore = availableStarts.length > endIdx
+
+    const rows = availableStarts.slice(startIdx, endIdx).map(st => {
       let hours = st.getHours()
       const ampm = hours >= 12 ? 'PM' : 'AM'
       hours = hours % 12 || 12
@@ -94,6 +99,10 @@ export class WhatsAppService {
       return { id: `time_${st.toISOString()}`, title: timeStr }
     })
 
+    if (hasMore) {
+      rows.push({ id: `pagemore_${page + 1}`, title: 'Show more times...' })
+    }
+
     const payload = {
       messaging_product: 'whatsapp',
       to,
@@ -101,7 +110,7 @@ export class WhatsAppService {
       interactive: {
         type: 'list',
         header: { type: 'text', text: 'Available Slots' },
-        body: { text: 'Please select a start time (showing up to 10):' },
+        body: { text: `Please select a start time (Page ${page + 1}):` },
         footer: { text: 'Powered by TurfManager' },
         action: {
           button: 'View Slots',
@@ -220,6 +229,9 @@ export class WhatsAppService {
           session.date = new Date(dateStr)
           await this.sendStartTimeSelection(senderPhone, session.location_id, session.date)
           session.step = 'time_selection'
+        } else if (replyId.startsWith('pagemore_')) {
+          const page = parseInt(replyId.split('_')[1], 10)
+          await this.sendStartTimeSelection(senderPhone, session.location_id, session.date, page)
         } else if (replyId.startsWith('time_')) {
           const timeStr = replyId.substring(5) // time_2023-10-10...
           session.start_time = new Date(timeStr)
