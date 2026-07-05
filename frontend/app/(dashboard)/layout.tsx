@@ -3,10 +3,11 @@
 import InstallPrompt from '@/components/pwa/InstallPrompt'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, CalendarDays, LineChart, Settings } from 'lucide-react'
+import { Home, CalendarDays, LineChart, Settings, Smartphone } from 'lucide-react'
 
 const navItems = [
   { name: 'Overview', href: '/dashboard', icon: Home },
+  { name: 'Simulator', href: '/simulator', icon: Smartphone },
   { name: 'Bookings', href: '/bookings', icon: CalendarDays },
   { name: 'Revenue', href: '/revenue', icon: LineChart },
   { name: 'Settings', href: '/settings', icon: Settings },

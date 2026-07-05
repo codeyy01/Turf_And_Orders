@@ -10,6 +10,9 @@ export class WhatsAppService {
   private baseUrl: string
   private bookingEngine: BookingEngine
   private razorpay: RazorpayService
+  
+  public isSimulator: boolean = false
+  public simulatorResponses: any[] = []
 
   constructor(bookingEngine: BookingEngine, razorpay: RazorpayService) {
     this.token = process.env.WHATSAPP_TOKEN || 'your-whatsapp-token'
@@ -20,6 +23,10 @@ export class WhatsAppService {
   }
 
   private async sendRequest(payload: any) {
+    if (this.isSimulator) {
+      this.simulatorResponses.push(payload)
+      return
+    }
     try {
       const response = await fetch(this.baseUrl, {
         method: 'POST',
