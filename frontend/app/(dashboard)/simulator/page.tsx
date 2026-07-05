@@ -21,8 +21,7 @@ export default function SimulatorPage() {
   const [mounted, setMounted] = useState(false)
   const [locationId, setLocationId] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
-
-  const mockPhone = '919999999999'
+  const [mockPhone] = useState(`91999999${Math.floor(1000 + Math.random() * 9000)}`)
 
   useEffect(() => {
     setMounted(true)
