@@ -102,7 +102,7 @@ export default async function DashboardPage() {
       {/* Operations Section */}
       <section>
         <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 px-2">Today&apos;s Schedule</h3>
-        <SlotCalendar initialBookings={bookings ?? []} />
+        <SlotCalendar initialBookings={bookings ?? []} locationIds={locationIds} />
       </section>
 
     </div>

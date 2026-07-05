@@ -16,8 +16,8 @@ const STATUS_CONFIG: Record<Booking['status'], { style: string, icon: any, label
   cancelled: { style: 'bg-red-50 text-red-400 border-red-100 opacity-60', icon: Ban, label: 'Cancelled' },
 }
 
-export default function SlotCalendar({ initialBookings }: { initialBookings: Booking[] }) {
-  const bookings = useRealtimeBookings(initialBookings)
+export default function SlotCalendar({ initialBookings, locationIds = [] }: { initialBookings: Booking[], locationIds?: string[] }) {
+  const bookings = useRealtimeBookings<Booking>(initialBookings, locationIds)
 
   if (bookings.length === 0) {
     return (

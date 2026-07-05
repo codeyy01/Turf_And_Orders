@@ -21,8 +21,8 @@ const STATUS_BADGES: Record<Booking['status'], string> = {
   cancelled: 'bg-red-50 text-red-600 ring-1 ring-red-600/10 line-through',
 }
 
-export default function BookingsTable({ initialBookings }: { initialBookings: any[] }) {
-  const bookings = useRealtimeBookings<Booking>(initialBookings)
+export default function BookingsTable({ initialBookings, locationIds = [] }: { initialBookings: any[], locationIds?: string[] }) {
+  const bookings = useRealtimeBookings<Booking>(initialBookings, locationIds)
   const supabase = createClient()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
