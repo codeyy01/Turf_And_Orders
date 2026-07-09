@@ -257,6 +257,7 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
                   onMouseLeave={handleInteractionEnd}
                   onTouchStart={() => handleInteractionStart(booking.id)}
                   onTouchEnd={handleInteractionEnd}
+                  onTouchMove={handleInteractionEnd}
                   onClick={() => handleItemClick(booking.id)}
                   className={`group transition-colors ${selectedIds.has(booking.id) ? 'bg-indigo-50/60' : 'hover:bg-indigo-50/30'} ${isSelectionMode ? 'cursor-pointer' : ''}`}
                 >
@@ -349,6 +350,7 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
                 onMouseLeave={handleInteractionEnd}
                 onTouchStart={() => handleInteractionStart(booking.id)}
                 onTouchEnd={handleInteractionEnd}
+                onTouchMove={handleInteractionEnd}
                 onClick={() => handleItemClick(booking.id)}
                 className={`relative overflow-hidden bg-white rounded-2xl p-5 shadow-lg flex flex-col space-y-4 transition-all duration-300 ${selectedIds.has(booking.id) ? 'border-2 border-indigo-500 shadow-indigo-500/20 scale-[1.02]' : 'border border-indigo-50 hover:shadow-xl hover:border-indigo-100'} ${isSelectionMode ? 'cursor-pointer' : 'cursor-default'}`}
               >
