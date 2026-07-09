@@ -72,7 +72,7 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
   const isAllSelected = bookings.length > 0 && selectedIds.size === bookings.length
 
   return (
-    <div className="flex flex-col space-y-3">
+    <div className="flex flex-col space-y-4">
       {/* Bulk Action Bar */}
       {selectedIds.size > 0 && (
         <div className="bg-red-50 border border-red-100 p-3 rounded-xl flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-300">
@@ -90,7 +90,8 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
         <table className="w-full text-left text-sm text-gray-500">
           <thead className="bg-gray-50 text-xs uppercase text-gray-700">
             <tr>
@@ -169,6 +170,74 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden flex flex-col space-y-4 pb-6">
+        <div className="flex items-center justify-between px-1">
+          <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 cursor-pointer">
+            <input 
+              type="checkbox" 
+              className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+              checked={isAllSelected}
+              onChange={toggleSelectAll}
+            />
+            <span>Select All Bookings</span>
+          </label>
+        </div>
+
+        {bookings.map((booking) => (
+          <div key={booking.id} className={`bg-white rounded-xl border p-4 shadow-sm flex flex-col space-y-4 transition-all ${selectedIds.has(booking.id) ? 'border-emerald-500 ring-1 ring-emerald-500 bg-emerald-50/10' : 'border-gray-200'}`}>
+            <div className="flex justify-between items-start">
+              <div className="flex items-start space-x-3">
+                <input 
+                  type="checkbox" 
+                  className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 mt-1"
+                  checked={selectedIds.has(booking.id)}
+                  onChange={() => toggleSelect(booking.id)}
+                />
+                <div>
+                  <div className="font-semibold text-gray-900">{booking.customers?.name || 'Unknown'}</div>
+                  <div className="text-sm text-gray-500">{booking.customers?.phone || 'No phone'}</div>
+                </div>
+              </div>
+              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_BADGES[booking.status]}`}>
+                {booking.status.replace('_', ' ').toUpperCase()}
+              </span>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm pt-3 border-t border-gray-100">
+              <div>
+                <div className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-1">Date & Time</div>
+                <div className="font-medium text-gray-900">{format(new Date(booking.start_time), 'MMM d, yyyy')}</div>
+                <div className="text-gray-600">{format(new Date(booking.start_time), 'h:mm a')}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-1">Amount</div>
+                <div className="font-bold text-gray-900 text-base">₹{booking.amount || 0}</div>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-3 border-t border-gray-100">
+              {booking.status !== 'confirmed' && booking.status !== 'cancelled' && (
+                <button onClick={() => handleUpdateStatus(booking.id, 'confirmed')} className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-200 transition-colors">
+                  Confirm
+                </button>
+              )}
+              {booking.status !== 'cancelled' && (
+                <button onClick={() => handleUpdateStatus(booking.id, 'cancelled')} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors">
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {bookings.length === 0 && (
+          <div className="p-8 text-center text-gray-500 bg-white rounded-xl border border-gray-200 shadow-sm">
+            No bookings found.
+          </div>
+        )}
       </div>
     </div>
   )
