@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings'
 import { format } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
-import { Trash2, ArrowUpDown, Calendar, DollarSign, Activity } from 'lucide-react'
+import { Trash2, Calendar, DollarSign, Activity, CheckSquare, Square } from 'lucide-react'
 import { motion, AnimatePresence, Variants } from 'framer-motion'
 
 type Booking = {
@@ -32,6 +32,9 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
   const [sortField, setSortField] = useState<'date' | 'amount' | 'status'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
+  const isSelectionMode = selectedIds.size > 0
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null)
+
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
       await supabase.from('bookings').update({ status: newStatus }).eq('id', id)
@@ -56,6 +59,29 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
       newSet.add(id)
     }
     setSelectedIds(newSet)
+  }
+
+  const handleInteractionStart = (id: string) => {
+    if (isSelectionMode) return
+    longPressTimer.current = setTimeout(() => {
+      toggleSelect(id)
+      // Provide haptic feedback if available on mobile
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(50)
+      }
+    }, 500)
+  }
+
+  const handleInteractionEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+    }
+  }
+
+  const handleItemClick = (id: string) => {
+    if (isSelectionMode) {
+      toggleSelect(id)
+    }
   }
 
   const handleDeleteSelected = async () => {
@@ -115,44 +141,47 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
   }
 
   return (
-    <div className="flex flex-col space-y-6">
+    <div className="flex flex-col space-y-6 relative">
       
-      {/* Controls Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-indigo-100 shadow-sm">
-        
-        {/* Bulk Action Bar */}
-        <AnimatePresence mode="popLayout">
-          {selectedIds.size > 0 ? (
-            <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="flex items-center space-x-3"
-            >
-              <span className="text-sm font-semibold text-indigo-900 bg-indigo-100 px-3 py-1.5 rounded-full">
+      {/* Sticky Selection Bar (Glassmorphism) */}
+      <AnimatePresence>
+        {isSelectionMode && (
+          <motion.div 
+            initial={{ opacity: 0, y: -100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -100 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="fixed top-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-xl border-b border-indigo-100 shadow-sm px-4 py-3 sm:px-6 lg:px-8 flex items-center justify-between"
+          >
+            <div className="flex items-center space-x-4 max-w-7xl mx-auto w-full">
+              <button 
+                onClick={toggleSelectAll}
+                className="flex items-center space-x-2 text-indigo-700 font-semibold text-sm hover:text-indigo-900 transition-colors"
+              >
+                {isAllSelected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
+                <span className="hidden sm:inline">Select All</span>
+              </button>
+              <span className="text-xs font-bold text-indigo-900/70 bg-indigo-100 px-3 py-1 rounded-full">
                 {selectedIds.size} selected
               </span>
+              
+              <div className="flex-1" />
+              
               <button
                 onClick={handleDeleteSelected}
                 disabled={isDeleting}
-                className="inline-flex items-center space-x-1.5 px-4 py-2 bg-rose-500 text-white text-sm font-semibold rounded-xl hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 disabled:opacity-50 transition-all shadow-md shadow-rose-500/20"
+                className="inline-flex items-center space-x-1.5 px-4 py-2 bg-rose-500 text-white text-sm font-semibold rounded-xl hover:bg-rose-600 active:scale-95 transition-all shadow-md shadow-rose-500/20 disabled:opacity-50"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
               </button>
-            </motion.div>
-          ) : (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex items-center"
-            >
-               <span className="text-sm font-medium text-gray-500">Select bookings to manage</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
+      {/* Controls Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-4 bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-indigo-100 shadow-sm">
         {/* Sort Controls */}
         <div className="flex items-center space-x-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200 overflow-x-auto">
           <button 
@@ -184,14 +213,16 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
         <table className="w-full text-left text-sm text-gray-500">
           <thead className="bg-gradient-to-r from-indigo-50/50 to-purple-50/50 text-xs uppercase text-indigo-900/70 font-semibold border-b border-indigo-100">
             <tr>
-              <th scope="col" className="px-6 py-5 w-12">
-                <input 
-                  type="checkbox" 
-                  className="rounded-md border-indigo-200 text-indigo-600 focus:ring-indigo-500 transition-colors cursor-pointer w-4 h-4"
-                  checked={isAllSelected}
-                  onChange={toggleSelectAll}
-                />
-              </th>
+              {isSelectionMode && (
+                <th scope="col" className="px-6 py-5 w-12 transition-all duration-300">
+                  <input 
+                    type="checkbox" 
+                    className="rounded-md border-indigo-200 text-indigo-600 focus:ring-indigo-500 transition-colors cursor-pointer w-4 h-4"
+                    checked={isAllSelected}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
+              )}
               <th scope="col" className="px-6 py-5">Date & Time</th>
               <th scope="col" className="px-6 py-5">Customer</th>
               <th scope="col" className="px-6 py-5">Status</th>
@@ -211,16 +242,24 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
                   variants={itemVariants}
                   layout
                   key={booking.id} 
-                  className={`group transition-colors ${selectedIds.has(booking.id) ? 'bg-indigo-50/60' : 'hover:bg-indigo-50/30'}`}
+                  onMouseDown={() => handleInteractionStart(booking.id)}
+                  onMouseUp={handleInteractionEnd}
+                  onMouseLeave={handleInteractionEnd}
+                  onTouchStart={() => handleInteractionStart(booking.id)}
+                  onTouchEnd={handleInteractionEnd}
+                  onClick={() => handleItemClick(booking.id)}
+                  className={`group transition-colors ${selectedIds.has(booking.id) ? 'bg-indigo-50/60' : 'hover:bg-indigo-50/30'} ${isSelectionMode ? 'cursor-pointer' : ''}`}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap w-12">
-                    <input 
-                      type="checkbox" 
-                      className="rounded-md border-indigo-200 text-indigo-600 focus:ring-indigo-500 transition-colors cursor-pointer w-4 h-4"
-                      checked={selectedIds.has(booking.id)}
-                      onChange={() => toggleSelect(booking.id)}
-                    />
-                  </td>
+                  {isSelectionMode && (
+                    <td className="px-6 py-4 whitespace-nowrap w-12 transition-all duration-300">
+                      <input 
+                        type="checkbox" 
+                        className="rounded-md border-indigo-200 text-indigo-600 focus:ring-indigo-500 transition-colors cursor-pointer w-4 h-4 pointer-events-none"
+                        checked={selectedIds.has(booking.id)}
+                        readOnly
+                      />
+                    </td>
+                  )}
                   <td className="whitespace-nowrap px-6 py-4">
                     <div className="font-semibold text-gray-900 group-hover:text-indigo-900 transition-colors">
                       {format(new Date(booking.start_time), 'MMM d, yyyy')}
@@ -248,12 +287,18 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end space-x-3 opacity-0 group-hover:opacity-100 transition-opacity">
                       {booking.status !== 'confirmed' && booking.status !== 'cancelled' && (
-                         <button onClick={() => handleUpdateStatus(booking.id, 'confirmed')} className="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-lg font-semibold text-sm transition-all shadow-sm">
+                         <button 
+                           onClick={(e) => { e.stopPropagation(); handleUpdateStatus(booking.id, 'confirmed') }} 
+                           className="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-lg font-semibold text-sm transition-all shadow-sm"
+                         >
                            Confirm
                          </button>
                       )}
                       {booking.status !== 'cancelled' && (
-                         <button onClick={() => handleUpdateStatus(booking.id, 'cancelled')} className="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white rounded-lg font-semibold text-sm transition-all shadow-sm">
+                         <button 
+                           onClick={(e) => { e.stopPropagation(); handleUpdateStatus(booking.id, 'cancelled') }} 
+                           className="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white rounded-lg font-semibold text-sm transition-all shadow-sm"
+                         >
                            Cancel
                          </button>
                       )}
@@ -264,7 +309,7 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
             </AnimatePresence>
             {bookings.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-gray-500 bg-white">
+                <td colSpan={isSelectionMode ? 6 : 5} className="px-6 py-12 text-center text-gray-500 bg-white">
                   No bookings found.
                 </td>
               </tr>
@@ -275,18 +320,6 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
 
       {/* Mobile Card View */}
       <div className="md:hidden flex flex-col space-y-4 pb-12">
-        <div className="flex items-center justify-between px-2">
-          <label className="flex items-center space-x-3 text-sm font-semibold text-indigo-900 cursor-pointer bg-white/50 backdrop-blur-sm px-4 py-2 rounded-xl border border-indigo-100 shadow-sm">
-            <input 
-              type="checkbox" 
-              className="rounded-md border-indigo-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
-              checked={isAllSelected}
-              onChange={toggleSelectAll}
-            />
-            <span>Select All Bookings</span>
-          </label>
-        </div>
-
         <motion.div 
           variants={containerVariants}
           initial="hidden"
@@ -299,7 +332,13 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
                 variants={itemVariants}
                 layout
                 key={booking.id} 
-                className={`relative overflow-hidden bg-white rounded-2xl p-5 shadow-lg flex flex-col space-y-4 transition-all duration-300 ${selectedIds.has(booking.id) ? 'border-2 border-indigo-500 shadow-indigo-500/20 scale-[1.02]' : 'border border-indigo-50 hover:shadow-xl hover:border-indigo-100'}`}
+                onMouseDown={() => handleInteractionStart(booking.id)}
+                onMouseUp={handleInteractionEnd}
+                onMouseLeave={handleInteractionEnd}
+                onTouchStart={() => handleInteractionStart(booking.id)}
+                onTouchEnd={handleInteractionEnd}
+                onClick={() => handleItemClick(booking.id)}
+                className={`relative overflow-hidden bg-white rounded-2xl p-5 shadow-lg flex flex-col space-y-4 transition-all duration-300 ${selectedIds.has(booking.id) ? 'border-2 border-indigo-500 shadow-indigo-500/20 scale-[1.02]' : 'border border-indigo-50 hover:shadow-xl hover:border-indigo-100'} ${isSelectionMode ? 'cursor-pointer' : 'cursor-default'}`}
               >
                 {/* Decorative background gradient */}
                 <div className={`absolute -right-20 -top-20 w-40 h-40 rounded-full blur-3xl opacity-20 pointer-events-none ${
@@ -311,12 +350,21 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
 
                 <div className="flex justify-between items-start relative z-10">
                   <div className="flex items-start space-x-4">
-                    <input 
-                      type="checkbox" 
-                      className="rounded-md border-indigo-300 text-indigo-600 focus:ring-indigo-500 w-5 h-5 mt-1 cursor-pointer transition-transform hover:scale-110"
-                      checked={selectedIds.has(booking.id)}
-                      onChange={() => toggleSelect(booking.id)}
-                    />
+                    {/* Checkbox (Only visible in selection mode) */}
+                    {isSelectionMode && (
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.5 }}
+                      >
+                        <input 
+                          type="checkbox" 
+                          className="rounded-md border-indigo-300 text-indigo-600 focus:ring-indigo-500 w-5 h-5 mt-1 cursor-pointer transition-transform hover:scale-110 pointer-events-none"
+                          checked={selectedIds.has(booking.id)}
+                          readOnly
+                        />
+                      </motion.div>
+                    )}
                     <div>
                       <div className="font-bold text-gray-900 text-lg">{booking.customers?.name || 'Unknown'}</div>
                       <div className="text-sm font-medium text-gray-500">{booking.customers?.phone || 'No phone'}</div>
@@ -341,12 +389,18 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
 
                 <div className="flex justify-end space-x-3 pt-4 border-t border-indigo-50 relative z-10">
                   {booking.status !== 'confirmed' && booking.status !== 'cancelled' && (
-                    <button onClick={() => handleUpdateStatus(booking.id, 'confirmed')} className="flex-1 sm:flex-none px-4 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-bold hover:bg-emerald-500 hover:text-white transition-all shadow-sm active:scale-95">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleUpdateStatus(booking.id, 'confirmed') }} 
+                      className="flex-1 sm:flex-none px-4 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-bold hover:bg-emerald-500 hover:text-white transition-all shadow-sm active:scale-95"
+                    >
                       Confirm Booking
                     </button>
                   )}
                   {booking.status !== 'cancelled' && (
-                    <button onClick={() => handleUpdateStatus(booking.id, 'cancelled')} className="flex-1 sm:flex-none px-4 py-2.5 bg-rose-50 text-rose-600 rounded-xl text-sm font-bold hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-95">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleUpdateStatus(booking.id, 'cancelled') }} 
+                      className="flex-1 sm:flex-none px-4 py-2.5 bg-rose-50 text-rose-600 rounded-xl text-sm font-bold hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-95"
+                    >
                       Cancel
                     </button>
                   )}
