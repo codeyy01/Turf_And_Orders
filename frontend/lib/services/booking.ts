@@ -99,6 +99,7 @@ export class BookingEngine {
     baseTime.setUTCHours(0, 30, 0, 0)
     
     const now = new Date()
+    const bufferNow = new Date(now.getTime() + 15 * 60000) // 15-minute buffer
     const availableStarts: Date[] = []
     
     const slotsCount = ((23 - 6) * 60) / interval
@@ -107,7 +108,7 @@ export class BookingEngine {
       const slotTime = new Date(baseTime)
       slotTime.setMinutes(slotTime.getMinutes() + (i * interval))
 
-      if (slotTime < now) continue // Skip past slots
+      if (slotTime < bufferNow) continue // Skip past and immediate slots
 
       let isFree = true
       for (const b of bookedIntervals) {
