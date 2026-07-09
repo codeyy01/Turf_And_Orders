@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings'
 import { format } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
-import { Trash2 } from 'lucide-react'
+import { Trash2, ArrowUpDown, Calendar, DollarSign, Activity } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 type Booking = {
   id: string
@@ -17,8 +18,8 @@ type Booking = {
 const STATUS_BADGES: Record<Booking['status'], string> = {
   confirmed: 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-600/20',
   cash_pending: 'bg-amber-100 text-amber-700 ring-1 ring-amber-600/20',
-  pending: 'bg-gray-100 text-gray-600 ring-1 ring-gray-500/10',
-  cancelled: 'bg-red-50 text-red-600 ring-1 ring-red-600/10 line-through',
+  pending: 'bg-purple-100 text-purple-700 ring-1 ring-purple-600/20',
+  cancelled: 'bg-rose-100 text-rose-600 ring-1 ring-rose-600/20 line-through',
 }
 
 export default function BookingsTable({ initialBookings, locationIds = [] }: { initialBookings: any[], locationIds?: string[] }) {
@@ -26,6 +27,10 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
   const supabase = createClient()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
+  
+  // Sorting state
+  const [sortField, setSortField] = useState<'date' | 'amount' | 'status'>('date')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
@@ -69,116 +74,212 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
     }
   }
 
+  const sortedBookings = useMemo(() => {
+    return [...bookings].sort((a, b) => {
+      let comparison = 0
+      if (sortField === 'date') {
+        comparison = new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      } else if (sortField === 'amount') {
+        comparison = (a.amount || 0) - (b.amount || 0)
+      } else if (sortField === 'status') {
+        comparison = a.status.localeCompare(b.status)
+      }
+      return sortOrder === 'asc' ? comparison : -comparison
+    })
+  }, [bookings, sortField, sortOrder])
+
+  const toggleSort = (field: typeof sortField) => {
+    if (sortField === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortOrder('desc')
+    }
+  }
+
   const isAllSelected = bookings.length > 0 && selectedIds.size === bookings.length
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05
+      }
+    }
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  }
+
   return (
-    <div className="flex flex-col space-y-4">
-      {/* Bulk Action Bar */}
-      {selectedIds.size > 0 && (
-        <div className="bg-red-50 border border-red-100 p-3 rounded-xl flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-300">
-          <span className="text-sm font-medium text-red-800">
-            {selectedIds.size} booking{selectedIds.size > 1 ? 's' : ''} selected
-          </span>
-          <button
-            onClick={handleDeleteSelected}
-            disabled={isDeleting}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 disabled:opacity-50 transition-colors"
+    <div className="flex flex-col space-y-6">
+      
+      {/* Controls Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-indigo-100 shadow-sm">
+        
+        {/* Bulk Action Bar */}
+        <AnimatePresence mode="popLayout">
+          {selectedIds.size > 0 ? (
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="flex items-center space-x-3"
+            >
+              <span className="text-sm font-semibold text-indigo-900 bg-indigo-100 px-3 py-1.5 rounded-full">
+                {selectedIds.size} selected
+              </span>
+              <button
+                onClick={handleDeleteSelected}
+                disabled={isDeleting}
+                className="inline-flex items-center space-x-1.5 px-4 py-2 bg-rose-500 text-white text-sm font-semibold rounded-xl hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 disabled:opacity-50 transition-all shadow-md shadow-rose-500/20"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
+              </button>
+            </motion.div>
+          ) : (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center"
+            >
+               <span className="text-sm font-medium text-gray-500">Select bookings to manage</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Sort Controls */}
+        <div className="flex items-center space-x-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200 overflow-x-auto">
+          <button 
+            onClick={() => toggleSort('date')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${sortField === 'date' ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-indigo-100' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
           >
-            <Trash2 className="w-4 h-4" />
-            <span>{isDeleting ? 'Deleting...' : 'Delete Selected'}</span>
+            <Calendar className="w-4 h-4" />
+            <span>Date {sortField === 'date' && (sortOrder === 'asc' ? '↑' : '↓')}</span>
+          </button>
+          <button 
+            onClick={() => toggleSort('amount')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${sortField === 'amount' ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-emerald-100' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
+          >
+            <DollarSign className="w-4 h-4" />
+            <span>Amount {sortField === 'amount' && (sortOrder === 'asc' ? '↑' : '↓')}</span>
+          </button>
+          <button 
+            onClick={() => toggleSort('status')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${sortField === 'status' ? 'bg-white text-purple-600 shadow-sm ring-1 ring-purple-100' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
+          >
+            <Activity className="w-4 h-4" />
+            <span>Status {sortField === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}</span>
           </button>
         </div>
-      )}
+      </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
+      <div className="hidden md:block overflow-hidden rounded-2xl border border-indigo-100 shadow-xl shadow-indigo-100/50 bg-white/80 backdrop-blur-xl">
         <table className="w-full text-left text-sm text-gray-500">
-          <thead className="bg-gray-50 text-xs uppercase text-gray-700">
+          <thead className="bg-gradient-to-r from-indigo-50/50 to-purple-50/50 text-xs uppercase text-indigo-900/70 font-semibold border-b border-indigo-100">
             <tr>
-              <th scope="col" className="px-6 py-4 w-12">
+              <th scope="col" className="px-6 py-5 w-12">
                 <input 
                   type="checkbox" 
-                  className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  className="rounded-md border-indigo-200 text-indigo-600 focus:ring-indigo-500 transition-colors cursor-pointer w-4 h-4"
                   checked={isAllSelected}
                   onChange={toggleSelectAll}
                 />
               </th>
-              <th scope="col" className="px-6 py-4 font-medium">Date & Time</th>
-              <th scope="col" className="px-6 py-4 font-medium">Customer</th>
-              <th scope="col" className="px-6 py-4 font-medium">Status</th>
-              <th scope="col" className="px-6 py-4 font-medium text-right">Amount</th>
-              <th scope="col" className="px-6 py-4 font-medium text-right">Actions</th>
+              <th scope="col" className="px-6 py-5">Date & Time</th>
+              <th scope="col" className="px-6 py-5">Customer</th>
+              <th scope="col" className="px-6 py-5">Status</th>
+              <th scope="col" className="px-6 py-5 text-right">Amount</th>
+              <th scope="col" className="px-6 py-5 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
-            {bookings.map((booking) => (
-              <tr key={booking.id} className={`hover:bg-gray-50/50 transition-colors ${selectedIds.has(booking.id) ? 'bg-emerald-50/30' : ''}`}>
-                <td className="px-6 py-4 whitespace-nowrap w-12">
-                  <input 
-                    type="checkbox" 
-                    className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                    checked={selectedIds.has(booking.id)}
-                    onChange={() => toggleSelect(booking.id)}
-                  />
-                </td>
-                <td className="whitespace-nowrap px-6 py-4">
-                  <div className="font-medium text-gray-900">
-                    {format(new Date(booking.start_time), 'MMM d, yyyy')}
-                  </div>
-                  <div className="text-gray-500">
-                    {format(new Date(booking.start_time), 'h:mm a')}
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="font-medium text-gray-900">{booking.customers?.name || 'Unknown'}</div>
-                  <div className="text-gray-500">{booking.customers?.phone || 'No phone'}</div>
-                </td>
-                <td className="px-6 py-4">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                      STATUS_BADGES[booking.status]
-                    }`}
-                  >
-                    {booking.status.replace('_', ' ').toUpperCase()}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right font-medium text-gray-900">
-                  ₹{booking.amount || 0}
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end space-x-4">
-                    {booking.status !== 'confirmed' && booking.status !== 'cancelled' && (
-                       <button onClick={() => handleUpdateStatus(booking.id, 'confirmed')} className="text-emerald-600 hover:text-emerald-900 font-medium text-sm">
-                         Confirm
-                       </button>
-                    )}
-                    {booking.status !== 'cancelled' && (
-                       <button onClick={() => handleUpdateStatus(booking.id, 'cancelled')} className="text-red-500 hover:text-red-700 font-medium text-sm">
-                         Cancel
-                       </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
+          <motion.tbody 
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="divide-y divide-indigo-50"
+          >
+            <AnimatePresence>
+              {sortedBookings.map((booking) => (
+                <motion.tr 
+                  variants={itemVariants}
+                  layout
+                  key={booking.id} 
+                  className={`group transition-colors ${selectedIds.has(booking.id) ? 'bg-indigo-50/60' : 'hover:bg-indigo-50/30'}`}
+                >
+                  <td className="px-6 py-4 whitespace-nowrap w-12">
+                    <input 
+                      type="checkbox" 
+                      className="rounded-md border-indigo-200 text-indigo-600 focus:ring-indigo-500 transition-colors cursor-pointer w-4 h-4"
+                      checked={selectedIds.has(booking.id)}
+                      onChange={() => toggleSelect(booking.id)}
+                    />
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-4">
+                    <div className="font-semibold text-gray-900 group-hover:text-indigo-900 transition-colors">
+                      {format(new Date(booking.start_time), 'MMM d, yyyy')}
+                    </div>
+                    <div className="text-gray-500 font-medium">
+                      {format(new Date(booking.start_time), 'h:mm a')}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="font-semibold text-gray-900">{booking.customers?.name || 'Unknown'}</div>
+                    <div className="text-gray-500">{booking.customers?.phone || 'No phone'}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold tracking-wide uppercase ${
+                        STATUS_BADGES[booking.status]
+                      }`}
+                    >
+                      {booking.status.replace('_', ' ')}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right font-bold text-gray-900 text-base">
+                    ₹{booking.amount || 0}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end space-x-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {booking.status !== 'confirmed' && booking.status !== 'cancelled' && (
+                         <button onClick={() => handleUpdateStatus(booking.id, 'confirmed')} className="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-lg font-semibold text-sm transition-all shadow-sm">
+                           Confirm
+                         </button>
+                      )}
+                      {booking.status !== 'cancelled' && (
+                         <button onClick={() => handleUpdateStatus(booking.id, 'cancelled')} className="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white rounded-lg font-semibold text-sm transition-all shadow-sm">
+                           Cancel
+                         </button>
+                      )}
+                    </div>
+                  </td>
+                </motion.tr>
+              ))}
+            </AnimatePresence>
             {bookings.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-gray-500 bg-white">
+                <td colSpan={6} className="px-6 py-12 text-center text-gray-500 bg-white">
                   No bookings found.
                 </td>
               </tr>
             )}
-          </tbody>
+          </motion.tbody>
         </table>
       </div>
 
       {/* Mobile Card View */}
-      <div className="md:hidden flex flex-col space-y-4 pb-6">
-        <div className="flex items-center justify-between px-1">
-          <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 cursor-pointer">
+      <div className="md:hidden flex flex-col space-y-4 pb-12">
+        <div className="flex items-center justify-between px-2">
+          <label className="flex items-center space-x-3 text-sm font-semibold text-indigo-900 cursor-pointer bg-white/50 backdrop-blur-sm px-4 py-2 rounded-xl border border-indigo-100 shadow-sm">
             <input 
               type="checkbox" 
-              className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+              className="rounded-md border-indigo-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
               checked={isAllSelected}
               onChange={toggleSelectAll}
             />
@@ -186,58 +287,82 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
           </label>
         </div>
 
-        {bookings.map((booking) => (
-          <div key={booking.id} className={`bg-white rounded-xl border p-4 shadow-sm flex flex-col space-y-4 transition-all ${selectedIds.has(booking.id) ? 'border-emerald-500 ring-1 ring-emerald-500 bg-emerald-50/10' : 'border-gray-200'}`}>
-            <div className="flex justify-between items-start">
-              <div className="flex items-start space-x-3">
-                <input 
-                  type="checkbox" 
-                  className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 mt-1"
-                  checked={selectedIds.has(booking.id)}
-                  onChange={() => toggleSelect(booking.id)}
-                />
-                <div>
-                  <div className="font-semibold text-gray-900">{booking.customers?.name || 'Unknown'}</div>
-                  <div className="text-sm text-gray-500">{booking.customers?.phone || 'No phone'}</div>
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          className="flex flex-col space-y-4"
+        >
+          <AnimatePresence>
+            {sortedBookings.map((booking) => (
+              <motion.div 
+                variants={itemVariants}
+                layout
+                key={booking.id} 
+                className={`relative overflow-hidden bg-white rounded-2xl p-5 shadow-lg flex flex-col space-y-4 transition-all duration-300 ${selectedIds.has(booking.id) ? 'border-2 border-indigo-500 shadow-indigo-500/20 scale-[1.02]' : 'border border-indigo-50 hover:shadow-xl hover:border-indigo-100'}`}
+              >
+                {/* Decorative background gradient */}
+                <div className={`absolute -right-20 -top-20 w-40 h-40 rounded-full blur-3xl opacity-20 pointer-events-none ${
+                  booking.status === 'confirmed' ? 'bg-emerald-500' :
+                  booking.status === 'cancelled' ? 'bg-rose-500' :
+                  booking.status === 'pending' ? 'bg-purple-500' :
+                  'bg-amber-500'
+                }`} />
+
+                <div className="flex justify-between items-start relative z-10">
+                  <div className="flex items-start space-x-4">
+                    <input 
+                      type="checkbox" 
+                      className="rounded-md border-indigo-300 text-indigo-600 focus:ring-indigo-500 w-5 h-5 mt-1 cursor-pointer transition-transform hover:scale-110"
+                      checked={selectedIds.has(booking.id)}
+                      onChange={() => toggleSelect(booking.id)}
+                    />
+                    <div>
+                      <div className="font-bold text-gray-900 text-lg">{booking.customers?.name || 'Unknown'}</div>
+                      <div className="text-sm font-medium text-gray-500">{booking.customers?.phone || 'No phone'}</div>
+                    </div>
+                  </div>
+                  <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold tracking-wide uppercase shadow-sm ${STATUS_BADGES[booking.status]}`}>
+                    {booking.status.replace('_', ' ')}
+                  </span>
                 </div>
-              </div>
-              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_BADGES[booking.status]}`}>
-                {booking.status.replace('_', ' ').toUpperCase()}
-              </span>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 text-sm pt-3 border-t border-gray-100">
-              <div>
-                <div className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-1">Date & Time</div>
-                <div className="font-medium text-gray-900">{format(new Date(booking.start_time), 'MMM d, yyyy')}</div>
-                <div className="text-gray-600">{format(new Date(booking.start_time), 'h:mm a')}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-1">Amount</div>
-                <div className="font-bold text-gray-900 text-base">₹{booking.amount || 0}</div>
-              </div>
-            </div>
+                
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-indigo-50 relative z-10">
+                  <div>
+                    <div className="text-indigo-900/50 text-xs font-bold uppercase tracking-wider mb-1">Date & Time</div>
+                    <div className="font-bold text-gray-900">{format(new Date(booking.start_time), 'MMM d, yyyy')}</div>
+                    <div className="text-gray-600 font-medium">{format(new Date(booking.start_time), 'h:mm a')}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-indigo-900/50 text-xs font-bold uppercase tracking-wider mb-1">Amount</div>
+                    <div className="font-black text-gray-900 text-2xl tracking-tight">₹{booking.amount || 0}</div>
+                  </div>
+                </div>
 
-            <div className="flex justify-end space-x-3 pt-3 border-t border-gray-100">
-              {booking.status !== 'confirmed' && booking.status !== 'cancelled' && (
-                <button onClick={() => handleUpdateStatus(booking.id, 'confirmed')} className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-200 transition-colors">
-                  Confirm
-                </button>
-              )}
-              {booking.status !== 'cancelled' && (
-                <button onClick={() => handleUpdateStatus(booking.id, 'cancelled')} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors">
-                  Cancel
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+                <div className="flex justify-end space-x-3 pt-4 border-t border-indigo-50 relative z-10">
+                  {booking.status !== 'confirmed' && booking.status !== 'cancelled' && (
+                    <button onClick={() => handleUpdateStatus(booking.id, 'confirmed')} className="flex-1 sm:flex-none px-4 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-bold hover:bg-emerald-500 hover:text-white transition-all shadow-sm active:scale-95">
+                      Confirm Booking
+                    </button>
+                  )}
+                  {booking.status !== 'cancelled' && (
+                    <button onClick={() => handleUpdateStatus(booking.id, 'cancelled')} className="flex-1 sm:flex-none px-4 py-2.5 bg-rose-50 text-rose-600 rounded-xl text-sm font-bold hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-95">
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
 
-        {bookings.length === 0 && (
-          <div className="p-8 text-center text-gray-500 bg-white rounded-xl border border-gray-200 shadow-sm">
-            No bookings found.
-          </div>
-        )}
+          {bookings.length === 0 && (
+            <div className="p-10 text-center text-gray-500 bg-white/50 backdrop-blur-md rounded-2xl border border-indigo-100 shadow-sm">
+              <Calendar className="w-12 h-12 mx-auto text-indigo-200 mb-4" />
+              <p className="font-medium text-lg text-indigo-900">No bookings found</p>
+              <p className="text-sm">When customers book slots, they will appear here.</p>
+            </div>
+          )}
+        </motion.div>
       </div>
     </div>
   )
