@@ -5,7 +5,7 @@ import { useRealtimeBookings } from '@/hooks/useRealtimeBookings'
 import { format } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import { Trash2, ArrowUpDown, Calendar, DollarSign, Activity } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, Variants } from 'framer-motion'
 
 type Booking = {
   id: string
@@ -99,7 +99,7 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
 
   const isAllSelected = bookings.length > 0 && selectedIds.size === bookings.length
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
@@ -109,7 +109,7 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
     }
   }
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 15 },
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
   }
