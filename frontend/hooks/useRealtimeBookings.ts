@@ -44,5 +44,5 @@ export function useRealtimeBookings<T extends { id: string; location_id?: string
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locationIdsKey])
 
-  return bookings
+  return [bookings, setBookings] as const
 }

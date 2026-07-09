@@ -23,7 +23,7 @@ const STATUS_BADGES: Record<Booking['status'], string> = {
 }
 
 export default function BookingsTable({ initialBookings, locationIds = [] }: { initialBookings: any[], locationIds?: string[] }) {
-  const bookings = useRealtimeBookings<Booking>(initialBookings, locationIds)
+  const [bookings, setBookings] = useRealtimeBookings<Booking>(initialBookings, locationIds)
   const supabase = createClient()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
@@ -37,6 +37,8 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
+      // Optimistic local update
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: newStatus as Booking['status'] } : b))
       await supabase.from('bookings').update({ status: newStatus }).eq('id', id)
     } catch (e) {
       console.error(e)
@@ -91,7 +93,12 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
     setIsDeleting(true)
     try {
       const idsToDelete = Array.from(selectedIds)
+      
+      // Delete from DB first
       await supabase.from('bookings').delete().in('id', idsToDelete)
+      
+      // Instantly animate out by removing from local state
+      setBookings(prev => prev.filter(b => !selectedIds.has(b.id)))
       setSelectedIds(new Set())
     } catch (e) {
       console.error(e)
@@ -136,12 +143,13 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
   }
 
   const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 15 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+    hidden: { opacity: 0, scale: 0.95, y: 20 },
+    show: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } },
+    exit: { opacity: 0, scale: 0.9, x: -30, transition: { duration: 0.25, ease: "easeIn" } }
   }
 
   return (
-    <div className="flex flex-col space-y-6 relative">
+    <div className="flex flex-col space-y-6 relative select-none">
       
       {/* Sticky Selection Bar (Glassmorphism) */}
       <AnimatePresence>
@@ -236,12 +244,14 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
             animate="show"
             className="divide-y divide-indigo-50"
           >
-            <AnimatePresence>
+            <AnimatePresence mode="popLayout">
               {sortedBookings.map((booking) => (
                 <motion.tr 
                   variants={itemVariants}
+                  exit="exit"
                   layout
                   key={booking.id} 
+                  onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
                   onMouseDown={() => handleInteractionStart(booking.id)}
                   onMouseUp={handleInteractionEnd}
                   onMouseLeave={handleInteractionEnd}
@@ -326,12 +336,14 @@ export default function BookingsTable({ initialBookings, locationIds = [] }: { i
           animate="show"
           className="flex flex-col space-y-4"
         >
-          <AnimatePresence>
+          <AnimatePresence mode="popLayout">
             {sortedBookings.map((booking) => (
               <motion.div 
                 variants={itemVariants}
+                exit="exit"
                 layout
                 key={booking.id} 
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 onMouseDown={() => handleInteractionStart(booking.id)}
                 onMouseUp={handleInteractionEnd}
                 onMouseLeave={handleInteractionEnd}
